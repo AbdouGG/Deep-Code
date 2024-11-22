@@ -5,17 +5,15 @@ import {
   Trash2,
   Wifi,
   WifiOff,
-  LogIn,
   Menu,
   Sparkles,
   Loader2,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useParams } from 'react-router-dom';
 import { encode, decode } from 'base-64';
 import { Workspace } from './Workspace';
-import { LoginModal } from './LoginModal';
 import { auth, db } from '../config/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -29,7 +27,6 @@ export function CodeExecutor() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [hasRetried, setHasRetried] = useState(false);
   const [showWorkspace, setShowWorkspace] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const [user, setUser] = useState(auth.currentUser);
   const [showOutput, setShowOutput] = useState(() => {
     const savedPreference = localStorage.getItem('showOutput');
@@ -44,7 +41,6 @@ export function CodeExecutor() {
       : 'vs';
   });
 
-  // Watch for theme changes
   useEffect(() => {
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
@@ -110,9 +106,6 @@ export function CodeExecutor() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       setUser(user);
-      if (user) {
-        setShowLoginModal(false);
-      }
     });
 
     return () => unsubscribe();
@@ -222,42 +215,8 @@ export function CodeExecutor() {
     });
   };
 
-  const handleSignOut = async () => {
-    try {
-      await auth.signOut();
-      window.location.reload();
-    } catch (error) {
-      toast.error('Failed to sign out', {
-        position: 'bottom-right',
-      });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="absolute top-4 right-4 z-50 flex items-center gap-4">
-        {user ? (
-          <motion.button
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            onClick={handleSignOut}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-lg hover:shadow-xl"
-          >
-            Sign Out
-          </motion.button>
-        ) : (
-          <motion.button
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            onClick={() => setShowLoginModal(true)}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-lg hover:shadow-xl flex items-center gap-2"
-          >
-            <LogIn className="w-4 h-4" />
-            Sign In
-          </motion.button>
-        )}
-      </div>
-
       <motion.div
         className="fixed left-0 top-0 bottom-0 w-4 z-40 cursor-pointer"
         onHoverStart={() => setShowWorkspace(true)}
@@ -283,14 +242,14 @@ export function CodeExecutor() {
         setShowOutput={handleShowOutputChange}
       />
 
-      {!user && (
+      {!showWorkspace && !user && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-yellow-400/20 to-amber-400/20 dark:from-yellow-900/20 dark:to-amber-900/20 p-4"
+          className="bg-gradient-to-r from-indigo-400/20 to-purple-400/20 dark:from-indigo-900/20 dark:to-purple-900/20 p-4"
         >
-          <p className="text-center text-amber-800 dark:text-amber-200 font-medium">
-            ✨ Sign in to unlock the workspace feature and save your scripts!
+          <p className="text-center text-indigo-800 dark:text-indigo-200 font-medium">
+            ✨ Hover on the left edge to open Workspace and sign in to save your scripts!
           </p>
         </motion.div>
       )}
@@ -423,11 +382,6 @@ export function CodeExecutor() {
           )}
         </div>
       </div>
-
-      <LoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-      />
     </div>
   );
 }

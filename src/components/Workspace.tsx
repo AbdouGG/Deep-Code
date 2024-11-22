@@ -12,6 +12,8 @@ import {
   Sun,
   Search,
   LayoutTemplate,
+  LogOut,
+  LogIn,
 } from 'lucide-react';
 import {
   collection,
@@ -27,6 +29,7 @@ import {
 import { db, auth } from '../config/firebase';
 import toast from 'react-hot-toast';
 import { Editor } from '@monaco-editor/react';
+import { LoginModal } from './LoginModal';
 
 interface WorkspaceProps {
   onClose: () => void;
@@ -97,6 +100,8 @@ export function Workspace({
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredScripts, setFilteredScripts] = useState<SavedScript[]>([]);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -252,215 +257,287 @@ export function Workspace({
     }
   };
 
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();
+      toast.success('Signed out successfully');
+      setScripts([]);
+      setFilteredScripts([]);
+      onClose();
+    } catch (error) {
+      toast.error('Failed to sign out');
+    }
+  };
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (!isHovered && isOpen) {
+      timeout = setTimeout(() => {
+        onClose();
+      }, 300);
+    }
+    return () => clearTimeout(timeout);
+  }, [isHovered, isOpen, onClose]);
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ x: -300, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: -300, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="fixed left-0 top-0 bottom-0 w-80 bg-white dark:bg-gray-800 shadow-xl z-50"
-          onMouseLeave={() => onClose()}
-        >
-          <div className="h-full flex flex-col">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Workspace
-              </h2>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={handleSaveScript}
-                  className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center space-x-1"
-                  disabled={!isAuthenticated}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Save Script</span>
-                </button>
-                <button
-                  onClick={onClose}
-                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search scripts..."
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                />
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {filteredScripts.map((script) => (
-                <motion.div
-                  key={script.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 space-y-2"
-                >
-                  {editingScript === script.id ? (
-                    <div className="space-y-3">
-                      <input
-                        type="text"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        className="w-full px-2 py-1 rounded border dark:bg-gray-600 dark:border-gray-500"
-                        placeholder="Enter new title"
-                      />
-                      <div className="h-32 border rounded dark:border-gray-500 overflow-hidden">
-                        <Editor
-                          height="100%"
-                          defaultLanguage="javascript"
-                          theme={isDark ? 'vs-dark' : 'light'}
-                          value={editCode}
-                          onChange={(value) => setEditCode(value || '')}
-                          options={{
-                            minimap: { enabled: false },
-                            fontSize: 12,
-                            lineNumbers: 'off',
-                          }}
-                        />
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleUpdateScript(script.id)}
-                          className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => setEditingScript(null)}
-                          className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-medium text-gray-900 dark:text-white">
-                        {script.title}
-                      </h3>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => {
-                            setEditingScript(script.id);
-                            setEditTitle(script.title);
-                            setEditCode(script.code);
-                          }}
-                          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteScript(script.id)}
-                          className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 rounded"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {!editingScript && (
-                    <div className="flex justify-end">
-                      <button
-                        onClick={() => onInsertCode(script.code)}
-                        className="px-3 py-1 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700"
-                      >
-                        Insert
-                      </button>
-                    </div>
-                  )}
-                </motion.div>
-              ))}
-            </div>
-
-            <div className="border-t border-gray-200 dark:border-gray-700">
-              <motion.button
-                onClick={() => setShowProfile(!showProfile)}
-                className="w-full flex items-center justify-between p-4"
-                whileHover={{ backgroundColor: isDark ? 'rgba(55, 65, 81, 0.8)' : 'rgba(243, 244, 246, 0.8)' }}
-                whileTap={{ backgroundColor: isDark ? 'rgba(75, 85, 99, 0.9)' : 'rgba(229, 231, 235, 0.9)', scale: 0.98 }}
-                transition={{ duration: 0.2 }}
-              >
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ x: -300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="fixed left-0 top-0 bottom-0 w-80 bg-white dark:bg-gray-800 shadow-xl z-50"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            {/* Rest of the component remains the same */}
+            <div className="h-full flex flex-col">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Workspace
+                </h2>
                 <div className="flex items-center space-x-2">
-                  <User className="w-5 h-5" />
-                  <span>Profile</span>
-                </div>
-                <motion.div
-                  variants={chevronVariants}
-                  animate={showProfile ? 'up' : 'down'}
-                  initial={false}
-                >
-                  <ChevronDown className="w-4 h-4" />
-                </motion.div>
-              </motion.button>
-
-              <AnimatePresence initial={false}>
-                {showProfile && (
-                  <motion.div
-                    variants={profileContentVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="hidden"
-                    className="px-4 overflow-hidden"
-                  >
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ delay: 0.1 }}
-                      className="space-y-4 py-2"
+                  {isAuthenticated && (
+                    <button
+                      onClick={handleSaveScript}
+                      className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center space-x-1"
                     >
-                      <div>
-                        <p className="font-medium">{auth.currentUser?.email}</p>
-                      </div>
+                      <Plus className="w-4 h-4" />
+                      <span>Save Script</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
 
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Show Output Panel</span>
-                        <motion.button
-                          onClick={toggleOutput}
-                          className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          <LayoutTemplate className="w-4 h-4" />
-                        </motion.button>
-                      </div>
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search scripts..."
+                    className="w-full pl-10 pr-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  />
+                </div>
+              </div>
 
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Theme</span>
-                        <motion.button
-                          onClick={toggleTheme}
-                          className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          {isDark ? (
-                            <Sun className="w-4 h-4" />
-                          ) : (
-                            <Moon className="w-4 h-4" />
-                          )}
-                        </motion.button>
-                      </div>
-                    </motion.div>
-                  </motion.div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {!isAuthenticated && (
+                  <div className="bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-lg">
+                    <p className="text-sm text-indigo-800 dark:text-indigo-200">
+                      Sign in to save and manage your scripts! ✨
+                    </p>
+                    <button
+                      onClick={() => setShowLoginModal(true)}
+                      className="mt-2 w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      Sign In
+                    </button>
+                  </div>
                 )}
-              </AnimatePresence>
+
+                {filteredScripts.map((script) => (
+                  <motion.div
+                    key={script.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 space-y-2"
+                  >
+                    {editingScript === script.id ? (
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          className="w-full px-2 py-1 rounded border dark:bg-gray-600 dark:border-gray-500"
+                          placeholder="Enter new title"
+                        />
+                        <div className="h-32 border rounded dark:border-gray-500 overflow-hidden">
+                          <Editor
+                            height="100%"
+                            defaultLanguage="javascript"
+                            theme={isDark ? 'vs-dark' : 'light'}
+                            value={editCode}
+                            onChange={(value) => setEditCode(value || '')}
+                            options={{
+                              minimap: { enabled: false },
+                              fontSize: 12,
+                              lineNumbers: 'off',
+                            }}
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleUpdateScript(script.id)}
+                            className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingScript(null)}
+                            className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium text-gray-900 dark:text-white">
+                          {script.title}
+                        </h3>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => {
+                              setEditingScript(script.id);
+                              setEditTitle(script.title);
+                              setEditCode(script.code);
+                            }}
+                            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteScript(script.id)}
+                            className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 rounded"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {!editingScript && (
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => onInsertCode(script.code)}
+                          className="px-3 py-1 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700"
+                        >
+                          Insert
+                        </button>
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+
+              <div className="border-t border-gray-200 dark:border-gray-700">
+                <motion.button
+                  onClick={() => setShowProfile(!showProfile)}
+                  className="w-full flex items-center justify-between p-4"
+                  whileHover={{ backgroundColor: isDark ? 'rgba(55, 65, 81, 0.8)' : 'rgba(243, 244, 246, 0.8)' }}
+                  whileTap={{ backgroundColor: isDark ? 'rgba(75, 85, 99, 0.9)' : 'rgba(229, 231, 235, 0.9)', scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="flex items-center space-x-2">
+                    <User className="w-5 h-5" />
+                    <span>Profile</span>
+                  </div>
+                  <motion.div
+                    variants={chevronVariants}
+                    animate={showProfile ? 'up' : 'down'}
+                    initial={false}
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </motion.div>
+                </motion.button>
+
+                <AnimatePresence initial={false}>
+                  {showProfile && (
+                    <motion.div
+                      variants={profileContentVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit="hidden"
+                      className="px-4 overflow-hidden"
+                    >
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ delay: 0.1 }}
+                        className="space-y-4 py-2"
+                      >
+                        {isAuthenticated ? (
+                          <>
+                            <div>
+                              <p className="font-medium">{auth.currentUser?.email}</p>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Show Output Panel</span>
+                              <motion.button
+                                onClick={toggleOutput}
+                                className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <LayoutTemplate className="w-4 h-4" />
+                              </motion.button>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Theme</span>
+                              <motion.button
+                                onClick={toggleTheme}
+                                className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                {isDark ? (
+                                  <Sun className="w-4 h-4" />
+                                ) : (
+                                  <Moon className="w-4 h-4" />
+                                )}
+                              </motion.button>
+                            </div>
+
+                            <button
+                              onClick={handleSignOut}
+                              className="w-full px-4 py-2 mt-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <LogOut className="w-4 h-4" />
+                              Sign Out
+                            </button>
+                          </>
+                        ) : (
+                          <div className="text-center py-2">
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                              Sign in to access more features
+                            </p>
+                            <button
+                              onClick={() => setShowLoginModal(true)}
+                              className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <LogIn className="w-4 h-4" />
+                              Sign In
+                            </button>
+                          </div>
+                        )}
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+      />
+    </>
   );
 }
