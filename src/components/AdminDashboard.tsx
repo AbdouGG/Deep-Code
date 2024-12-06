@@ -11,12 +11,25 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 import { useNavigate } from 'react-router-dom';
-import { Plus, LogOut, Settings } from 'lucide-react';
+import {
+  Plus,
+  LogOut,
+  Settings,
+  Search,
+  Code2,
+  LayoutGrid,
+  List,
+  Trash2,
+  Edit2,
+  Save,
+  X,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { CodeSnippet } from '../types';
 import { SnippetForm } from './SnippetForm';
 import { SnippetView } from './SnippetView';
 import { ProfileSettings } from './ProfileSettings';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const defaultSnippetForm: Omit<CodeSnippet, 'id'> = {
   title: '',
@@ -39,11 +52,11 @@ export function AdminDashboard() {
   const [snippets, setSnippets] = useState<CodeSnippet[]>([]);
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
-  const [editForm, setEditForm] =
-    useState<Omit<CodeSnippet, 'id'>>(defaultSnippetForm);
-  const [newTag, setNewTag] = useState('');
+  const [editForm, setEditForm] = useState<Omit<CodeSnippet, 'id'>>(defaultSnippetForm);
   const [isLoading, setIsLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -156,6 +169,13 @@ export function AdminDashboard() {
     }
   };
 
+  const filteredSnippets = snippets.filter(
+    (snippet) =>
+      snippet.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      snippet.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      snippet.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -166,98 +186,215 @@ export function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <nav className="bg-white dark:bg-gray-800 shadow-sm">
+      {/* Header */}
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-            Admin Dashboard
-          </h1>
+          <div className="flex items-center space-x-4">
+            <Code2 className="w-8 h-8 text-indigo-500" />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Code Portfolio
+            </h1>
+          </div>
           <div className="flex items-center space-x-4">
             <button
               onClick={() => setShowSettings(true)}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
-              <Settings className="w-4 h-4" />
-              <span>Settings</span>
+              <Settings className="w-5 h-5" />
             </button>
             <button
               onClick={handleLogout}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800 transition-colors"
+              className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center space-x-2"
             >
               <LogOut className="w-4 h-4" />
               <span>Logout</span>
             </button>
           </div>
         </div>
-      </nav>
+      </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {showSettings ? (
           <ProfileSettings onClose={() => setShowSettings(false)} />
         ) : (
           <>
-            <div className="flex justify-end mb-6">
+            {/* Toolbar */}
+            <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+              <div className="flex items-center space-x-4">
+                <div className="relative flex-1 sm:flex-none sm:min-w-[300px]">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search snippets..."
+                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                  />
+                </div>
+                <div className="flex items-center space-x-2 bg-white dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2 rounded ${
+                      viewMode === 'grid'
+                        ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400'
+                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <LayoutGrid className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 rounded ${
+                      viewMode === 'list'
+                        ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400'
+                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <List className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
               <button
                 onClick={() => {
                   setIsAdding(true);
                   setEditForm(defaultSnippetForm);
                 }}
-                className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-5 h-5" />
                 <span>Add Snippet</span>
               </button>
             </div>
 
-            {isAdding && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                  Add New Snippet
-                </h2>
-                <SnippetForm
-                  editForm={editForm}
-                  setEditForm={setEditForm}
-                  newTag={newTag}
-                  setNewTag={setNewTag}
-                  onSubmit={handleAddSnippet}
-                  onCancel={() => {
-                    setIsAdding(false);
-                    setEditForm(defaultSnippetForm);
-                  }}
-                />
+            {/* Add/Edit Form Modal */}
+            <AnimatePresence>
+              {(isAdding || isEditing) && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+                >
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
+                  >
+                    <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {isAdding ? 'Add New Snippet' : 'Edit Snippet'}
+                      </h2>
+                      <button
+                        onClick={() => {
+                          setIsAdding(false);
+                          setIsEditing(null);
+                          setEditForm(defaultSnippetForm);
+                        }}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                      <SnippetForm
+                        editForm={editForm}
+                        setEditForm={setEditForm}
+                        newTag=""
+                        setNewTag={() => {}}
+                        onSubmit={() =>
+                          isAdding
+                            ? handleAddSnippet()
+                            : isEditing && handleUpdateSnippet(isEditing)
+                        }
+                        onCancel={() => {
+                          setIsAdding(false);
+                          setIsEditing(null);
+                          setEditForm(defaultSnippetForm);
+                        }}
+                      />
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Snippets Grid/List */}
+            {filteredSnippets.length === 0 ? (
+              <div className="text-center py-12">
+                <Code2 className="w-12 h-12 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                  No snippets found
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400">
+                  {searchQuery
+                    ? 'Try adjusting your search terms'
+                    : 'Get started by adding your first snippet'}
+                </p>
+              </div>
+            ) : (
+              <div
+                className={
+                  viewMode === 'grid'
+                    ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                    : 'space-y-6'
+                }
+              >
+                {filteredSnippets.map((snippet) => (
+                  <motion.div
+                    key={snippet.id}
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden"
+                  >
+                    <div className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                            {snippet.title}
+                          </h3>
+                          <p className="text-gray-600 dark:text-gray-300 text-sm">
+                            {snippet.description}
+                          </p>
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              setIsEditing(snippet.id);
+                              setEditForm(snippet);
+                            }}
+                            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSnippet(snippet.id)}
+                            className="p-2 rounded-lg bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-800"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {snippet.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-2 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-full text-sm"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        Last updated: {new Date(snippet.lastUpdated).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
             )}
-
-            <div className="space-y-6">
-              {snippets.map((snippet) => (
-                <div
-                  key={snippet.id}
-                  className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"
-                >
-                  {isEditing === snippet.id ? (
-                    <SnippetForm
-                      editForm={editForm}
-                      setEditForm={setEditForm}
-                      newTag={newTag}
-                      setNewTag={setNewTag}
-                      onSubmit={() => handleUpdateSnippet(snippet.id)}
-                      onCancel={() => {
-                        setIsEditing(null);
-                        setEditForm(defaultSnippetForm);
-                      }}
-                    />
-                  ) : (
-                    <SnippetView
-                      snippet={snippet}
-                      onEdit={() => {
-                        setIsEditing(snippet.id);
-                        setEditForm(snippet);
-                      }}
-                      onDelete={() => handleDeleteSnippet(snippet.id)}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
           </>
         )}
       </main>
