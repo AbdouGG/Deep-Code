@@ -338,7 +338,7 @@ export function CodeExecutor() {
             >
               <Editor
                 height="100%"
-                defaultLanguage="javascript"
+                defaultLanguage="lua"
                 theme={theme}
                 value={code}
                 onChange={(value) => setCode(value || '')}
